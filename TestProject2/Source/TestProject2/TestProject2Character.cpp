@@ -158,12 +158,30 @@ void ATestProject2Character::PerformRaycast()
 
 	if (bHit && HitResult.GetActor())
 	{
-		// 레이캐스트에 무언가 부딪혔다면 로그 출력
-		UE_LOG(LogTemp, Warning, TEXT("레이캐스트가 %s 에 부딪혔습니다."), *HitResult.GetActor()->GetName());
+		AActor* HitActor = HitResult.GetActor();
+		FName ActorName = HitActor->GetFName();
+		TArray<FName> ActorTags = HitActor->Tags;
+		bool bHasClimbableTag = ActorTags.Contains(FName("Climbable"));
+
+		UE_LOG(LogTemp, Warning, TEXT("Raycast 부딪힌 액터 이름: %s"), *ActorName.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("Raycast 부딪힌 액터 태그 개수: %d"), ActorTags.Num());
+		for (const FName& Tag : ActorTags)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Raycast 액터 태그: %s"), *Tag.ToString());
+		}
+		UE_LOG(LogTemp, Warning, TEXT("Raycast HasClimbableTag: %s"), bHasClimbableTag ? TEXT("true") : TEXT("false"));
+
+		if (bHasClimbableTag)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Raycast (%s) Climable "), *HitActor->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Raycast %s found"), *HitActor->GetName());
+		}
 	}
 	else
 	{
-		// 아무것도 부딪히지 않았다면 로그 출력 (선택 사항)
-		UE_LOG(LogTemp, Warning, TEXT("레이캐스트가 아무것도 부딪히지 않았습니다."));
+		UE_LOG(LogTemp, Warning, TEXT("Raycast X"));
 	}
 }
