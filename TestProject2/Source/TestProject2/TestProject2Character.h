@@ -15,7 +15,7 @@ struct FInputActionValue;
 class UInputAction; // Forward declaration (추가분)
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
-UCLASS(config=Game)
+UCLASS(config = Game)
 class ATestProject2Character : public ACharacter
 {
 	GENERATED_BODY()
@@ -27,7 +27,7 @@ class ATestProject2Character : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-	
+
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
@@ -44,9 +44,9 @@ class ATestProject2Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
-public:
-	ATestProject2Character();
-	
+	/** "올라가기 시도" 액션 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ClimbAction;
 
 protected:
 
@@ -55,31 +55,42 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
-	/** "올라가기 시도" 액션 */																					   // 추가분
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))			   // 추가분
-	UInputAction* ClimbAction;																					   // 추가분
-																												   // 추가분
-	/** 레이캐스트 시작 위치 오프셋 (캐릭터 기준) */															   // 추가분  
-	UPROPERTY(EditDefaultsOnly, Category = Climbing)															   // 추가분
-	FVector ClimbTraceOffset;																					   // 추가분
-																												   // 추가분
-	/** 레이캐스트 최대 거리 */																					   // 추가분
-	UPROPERTY(EditDefaultsOnly, Category = Climbing)															   // 추가분
-	float ClimbTraceDistance;																					   // 추가분
-																												   // 추가분
-	/** 레이캐스트를 수행하고 결과를 처리하는 함수 */															   // 추가분
-	void PerformRaycast();																						   
-protected:																										   
 
-	virtual void NotifyControllerChanged() override;
+	/** 레이캐스트 시작 위치 오프셋 (캐릭터 기준) */
+	UPROPERTY(EditDefaultsOnly, Category = Climbing)
+	FVector ClimbTraceOffset;
 
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	/** 레이캐스트 최대 거리 */
+	UPROPERTY(EditDefaultsOnly, Category = Climbing)
+	float ClimbTraceDistance;
+
+	/** 올라가는 속도 */
+	UPROPERTY(EditDefaultsOnly, Category = Climbing)
+	float ClimbSpeed;
+
+	/** 올라가는 중인지 여부 */
+	bool bIsClimbing;
+
+	/** 올라갈 목표 위치 */
+	FVector ClimbTargetLocation;
+
+	/** "올라가기 시도" 액션 함수 */
+	void TryClimb();
+
+	/** 레이캐스트를 수행하고 결과를 처리하는 함수 */
+	void PerformRaycast() {} // 이제 TryClimb에서 호출
 
 public:
+	ATestProject2Character();
+
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-};
 
+	virtual void Tick(float DeltaTime) override;
+
+protected:
+	virtual void NotifyControllerChanged() override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+};

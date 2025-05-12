@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "DrawDebugHelpers.h" // 디버깅용 추가분
+#include "Kismet/KismetMathLibrary.h" // UKismetMathLibrary 포함
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -51,12 +52,12 @@ ATestProject2Character::ATestProject2Character()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
-	// "올라가기" 관련 변수 초기화																						  // 추가분
-	ClimbTraceOffset = FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()); // 대략 캐릭터 눈높이	  // 추가분
-	ClimbTraceDistance = 150.0f; // 적절한 거리로 조정																	  // 추가분
+	// "올라가기" 관련 변수 초기화
+	ClimbTraceOffset = FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()); // 대략 캐릭터 눈높이
+	ClimbTraceDistance = 150.0f; // 적절한 거리로 조정
+	ClimbSpeed = 500.0f; // 올라가는 속도
+	bIsClimbing = false;
+	ClimbTargetLocation = FVector::ZeroVector;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -92,7 +93,7 @@ void ATestProject2Character::SetupPlayerInputComponent(UInputComponent* PlayerIn
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATestProject2Character::Look);
 
 		// "올라가기" 액션 바인딩
-		EnhancedInputComponent->BindAction(ClimbAction, ETriggerEvent::Started, this, &ATestProject2Character::PerformRaycast);
+		EnhancedInputComponent->BindAction(ClimbAction, ETriggerEvent::Started, this, &ATestProject2Character::TryClimb);
 	}
 	else
 	{
@@ -105,7 +106,7 @@ void ATestProject2Character::Move(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
+	if (Controller != nullptr && !bIsClimbing)
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -128,7 +129,7 @@ void ATestProject2Character::Look(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
+	if (Controller != nullptr && !bIsClimbing)
 	{
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
@@ -136,8 +137,13 @@ void ATestProject2Character::Look(const FInputActionValue& Value)
 	}
 }
 
-void ATestProject2Character::PerformRaycast()
+void ATestProject2Character::TryClimb()
 {
+	if (bIsClimbing)
+	{
+		return;
+	}
+
 	FVector StartLocation = GetActorLocation() + GetActorForwardVector() * ClimbTraceOffset.X + FVector(0.0f, 0.0f, ClimbTraceOffset.Z);
 	FVector EndLocation = StartLocation + GetActorForwardVector() * ClimbTraceDistance;
 	FHitResult HitResult;
@@ -156,32 +162,39 @@ void ATestProject2Character::PerformRaycast()
 	// 디버깅용 Line Trace 그리기
 	DrawDebugLine(GetWorld(), StartLocation, EndLocation, bHit ? FColor::Green : FColor::Red, false, 0.1f);
 
-	if (bHit && HitResult.GetActor())
+	if (bHit && HitResult.GetActor() && HitResult.GetActor()->Tags.Contains(FName("Climbable")))
 	{
-		AActor* HitActor = HitResult.GetActor();
-		FName ActorName = HitActor->GetFName();
-		TArray<FName> ActorTags = HitActor->Tags;
-		bool bHasClimbableTag = ActorTags.Contains(FName("Climbable"));
+		UE_LOG(LogTemp, Warning, TEXT("올라갈 수 있는 오브젝트 (%s) 를 발견했습니다."), *HitResult.GetActor()->GetName());
 
-		UE_LOG(LogTemp, Warning, TEXT("Raycast 부딪힌 액터 이름: %s"), *ActorName.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("Raycast 부딪힌 액터 태그 개수: %d"), ActorTags.Num());
-		for (const FName& Tag : ActorTags)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Raycast 액터 태그: %s"), *Tag.ToString());
-		}
-		UE_LOG(LogTemp, Warning, TEXT("Raycast HasClimbableTag: %s"), bHasClimbableTag ? TEXT("true") : TEXT("false"));
-
-		if (bHasClimbableTag)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Raycast (%s) Climable "), *HitActor->GetName());
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Raycast %s found"), *HitActor->GetName());
-		}
+		// 올라갈 목표 위치 계산 (충돌 지점 위로 캐릭터 키의 절반 + 약간의 여유)
+		ClimbTargetLocation = HitResult.ImpactPoint + FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 20.0f);
+		bIsClimbing = true;
+		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying); // 비행 모드로 변경하여 움직임 제어
+		GetCharacterMovement()->Velocity = FVector::ZeroVector; // 초기 속도 0으로 설정
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Raycast X"));
+	}
+}
+
+void ATestProject2Character::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (bIsClimbing)
+	{
+		FVector CurrentLocation = GetActorLocation();
+		FVector Direction = (ClimbTargetLocation - CurrentLocation).GetSafeNormal();
+		FVector NewVelocity = Direction * ClimbSpeed;
+		GetCharacterMovement()->Velocity = NewVelocity;
+
+		// 목표 위치에 거의 도달했으면 올라가기 종료
+		if (FVector::DistSquared(CurrentLocation, ClimbTargetLocation) < FMath::Square(5.0f))
+		{
+			bIsClimbing = false;
+			GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+			SetActorLocation(ClimbTargetLocation); // 정확한 위치로 설정
+		}
 	}
 }
