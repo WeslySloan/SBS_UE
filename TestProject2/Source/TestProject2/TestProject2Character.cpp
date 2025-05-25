@@ -10,8 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "DrawDebugHelpers.h" // µğ¹ö±ë¿ë Ãß°¡ºĞ
-#include "Kismet/KismetMathLibrary.h" // UKismetMathLibrary Æ÷ÇÔ
+#include "DrawDebugHelpers.h" // ë””ë²„ê¹…ìš© ì¶”ê°€ë¶„
+#include "Kismet/KismetMathLibrary.h" // UKismetMathLibrary í¬í•¨
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -52,10 +52,10 @@ ATestProject2Character::ATestProject2Character()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// "¿Ã¶ó°¡±â" °ü·Ã º¯¼ö ÃÊ±âÈ­
-	ClimbTraceOffset = FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()); // ´ë·« Ä³¸¯ÅÍ ´«³ôÀÌ
-	ClimbTraceDistance = 150.0f; // ÀûÀıÇÑ °Å¸®·Î Á¶Á¤
-	ClimbSpeed = 500.0f; // ¿Ã¶ó°¡´Â ¼Óµµ
+	// "ì˜¬ë¼ê°€ê¸°" ê´€ë ¨ ë³€ìˆ˜ ì´ˆê¸°í™”
+	ClimbTraceOffset = FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()); // ëŒ€ëµ ìºë¦­í„° ëˆˆë†’ì´
+	ClimbTraceDistance = 150.0f; // ì ì ˆí•œ ê±°ë¦¬ë¡œ ì¡°ì •
+	ClimbSpeed = 500.0f; // ì˜¬ë¼ê°€ëŠ” ì†ë„
 	bIsClimbing = false;
 	ClimbTargetLocation = FVector::ZeroVector;
 }
@@ -92,7 +92,7 @@ void ATestProject2Character::SetupPlayerInputComponent(UInputComponent* PlayerIn
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATestProject2Character::Look);
 
-		// "¿Ã¶ó°¡±â" ¾×¼Ç ¹ÙÀÎµù
+		// "ì˜¬ë¼ê°€ê¸°" ì•¡ì…˜ ë°”ì¸ë”©
 		EnhancedInputComponent->BindAction(ClimbAction, ETriggerEvent::Started, this, &ATestProject2Character::TryClimb);
 	}
 	else
@@ -148,29 +148,29 @@ void ATestProject2Character::TryClimb()
 	FVector EndLocation = StartLocation + GetActorForwardVector() * ClimbTraceDistance;
 	FHitResult HitResult;
 	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this); // ÀÚ±â ÀÚ½ÅÀº ¹«½Ã
+	Params.AddIgnoredActor(this); // ìê¸° ìì‹ ì€ ë¬´ì‹œ
 
-	// Line Trace ¼öÇà
+	// Line Trace ìˆ˜í–‰
 	bool bHit = GetWorld()->LineTraceSingleByChannel(
 		HitResult,
 		StartLocation,
 		EndLocation,
-		ECC_Visibility, // ¶Ç´Â ¿øÇÏ´Â Collision Channel
+		ECC_Visibility, // ë˜ëŠ” ì›í•˜ëŠ” Collision Channel
 		Params
 	);
 
-	// µğ¹ö±ë¿ë Line Trace ±×¸®±â
+	// ë””ë²„ê¹…ìš© Line Trace ê·¸ë¦¬ê¸°
 	DrawDebugLine(GetWorld(), StartLocation, EndLocation, bHit ? FColor::Green : FColor::Red, false, 0.1f);
 
 	if (bHit && HitResult.GetActor() && HitResult.GetActor()->Tags.Contains(FName("Climbable")))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("¿Ã¶ó°¥ ¼ö ÀÖ´Â ¿ÀºêÁ§Æ® (%s) ¸¦ ¹ß°ßÇß½À´Ï´Ù."), *HitResult.GetActor()->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("ì˜¬ë¼ê°ˆ ìˆ˜ ìˆëŠ” ì˜¤ë¸Œì íŠ¸ (%s) ë¥¼ ë°œê²¬í–ˆìŠµë‹ˆë‹¤."), *HitResult.GetActor()->GetName());
 
-		// ¿Ã¶ó°¥ ¸ñÇ¥ À§Ä¡ °è»ê (Ãæµ¹ ÁöÁ¡ À§·Î Ä³¸¯ÅÍ Å°ÀÇ Àı¹İ + ¾à°£ÀÇ ¿©À¯)
+		// ì˜¬ë¼ê°ˆ ëª©í‘œ ìœ„ì¹˜ ê³„ì‚° (ì¶©ëŒ ì§€ì  ìœ„ë¡œ ìºë¦­í„° í‚¤ì˜ ì ˆë°˜ + ì•½ê°„ì˜ ì—¬ìœ )
 		ClimbTargetLocation = HitResult.ImpactPoint + FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 20.0f);
 		bIsClimbing = true;
-		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying); // ºñÇà ¸ğµå·Î º¯°æÇÏ¿© ¿òÁ÷ÀÓ Á¦¾î
-		GetCharacterMovement()->Velocity = FVector::ZeroVector; // ÃÊ±â ¼Óµµ 0À¸·Î ¼³Á¤
+		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying); // ë¹„í–‰ ëª¨ë“œë¡œ ë³€ê²½í•˜ì—¬ ì›€ì§ì„ ì œì–´
+		GetCharacterMovement()->Velocity = FVector::ZeroVector; // ì´ˆê¸° ì†ë„ 0ìœ¼ë¡œ ì„¤ì •
 	}
 	else
 	{
@@ -189,12 +189,12 @@ void ATestProject2Character::Tick(float DeltaTime)
 		FVector NewVelocity = Direction * ClimbSpeed;
 		GetCharacterMovement()->Velocity = NewVelocity;
 
-		// ¸ñÇ¥ À§Ä¡¿¡ °ÅÀÇ µµ´ŞÇßÀ¸¸é ¿Ã¶ó°¡±â Á¾·á
+		// ëª©í‘œ ìœ„ì¹˜ì— ê±°ì˜ ë„ë‹¬í–ˆìœ¼ë©´ ì˜¬ë¼ê°€ê¸° ì¢…ë£Œ
 		if (FVector::DistSquared(CurrentLocation, ClimbTargetLocation) < FMath::Square(5.0f))
 		{
 			bIsClimbing = false;
 			GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
-			SetActorLocation(ClimbTargetLocation); // Á¤È®ÇÑ À§Ä¡·Î ¼³Á¤
+			SetActorLocation(ClimbTargetLocation); // ì •í™•í•œ ìœ„ì¹˜ë¡œ ì„¤ì •
 		}
 	}
 }
