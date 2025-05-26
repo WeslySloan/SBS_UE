@@ -106,7 +106,13 @@ void ATestProject2Character::Move(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr && !bIsClimbing)
+	// bIsClimbing 상태일 때는 이동 입력을 받지 않음
+	if (bIsClimbing)
+	{
+		return; // bIsClimbing이 true면 함수를 즉시 종료하여 이동 입력을 무시
+	}
+
+	if (Controller != nullptr) // 이전에 !bIsClimbing 조건이 있었으나, 위에서 먼저 처리했으므로 제거
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
