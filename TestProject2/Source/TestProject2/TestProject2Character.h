@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
@@ -77,8 +78,14 @@ protected:
 	/** "올라가기 시도" 액션 함수 */
 	void TryClimb();
 
+	// 블루프린트에서 구현할 수 있는 이벤트
+	UFUNCTION(BlueprintImplementableEvent, Category = "Climbing")
+	void OnClimbStarted();
+
 	/** 레이캐스트를 수행하고 결과를 처리하는 함수 */
 	void PerformRaycast() {} // 이제 TryClimb에서 호출
+
+
 
 public:
 	ATestProject2Character();

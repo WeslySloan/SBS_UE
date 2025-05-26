@@ -139,8 +139,11 @@ void ATestProject2Character::Look(const FInputActionValue& Value)
 
 void ATestProject2Character::TryClimb()
 {
+	UE_LOG(LogTemp, Warning, TEXT("TryClimb function entered. bIsClimbing: %s"), bIsClimbing ? TEXT("True") : TEXT("False"));
 	if (bIsClimbing)
 	{
+		// 이 로그는 bIsClimbing이 true일 때만 출력됩니다.
+		UE_LOG(LogTemp, Warning, TEXT("Already climbing, returning."));
 		return;
 	}
 
@@ -166,11 +169,14 @@ void ATestProject2Character::TryClimb()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("올라갈 수 있는 오브젝트 (%s) 를 발견했습니다."), *HitResult.GetActor()->GetName());
 
-		// 올라갈 목표 위치 계산 (충돌 지점 위로 캐릭터 키의 절반 + 약간의 여유)
 		ClimbTargetLocation = HitResult.ImpactPoint + FVector(0.0f, 0.0f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 20.0f);
 		bIsClimbing = true;
-		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying); // 비행 모드로 변경하여 움직임 제어
-		GetCharacterMovement()->Velocity = FVector::ZeroVector; // 초기 속도 0으로 설정
+		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+		GetCharacterMovement()->Velocity = FVector::ZeroVector;
+
+		// 여기서 이벤트 호출
+		UE_LOG(LogTemp, Warning, TEXT("OnClimbStarted is about to be called!")); // <-- 이 줄 추가
+		OnClimbStarted();
 	}
 	else
 	{
